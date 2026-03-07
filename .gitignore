@@ -1,0 +1,6 @@
+.env
+backups/*
+!backups/.gitkeep
+!backups/jellyfin/
+backups/jellyfin/*
+!backups/jellyfin/.gitkeep
