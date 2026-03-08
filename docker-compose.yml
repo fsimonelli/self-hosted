@@ -8,6 +8,8 @@ services:
     ports:
       - "8085:8080"
     restart: unless-stopped
+    networks:
+      - media
 
   jellyfin:
     image: jellyfin/jellyfin:latest
@@ -18,24 +20,8 @@ services:
       - ${MEDIA_ROOT}:/media
     ports:
       - "8096:8096"
-    restart: unless-stopped
-    networks:
-      - media
-
-  tailscale:
-    image: tailscale/tailscale:latest
-    container_name: tailscale
-    hostname: ${TS_HOSTNAME}
-    environment:
-      - TS_AUTHKEY=${TS_AUTHKEY}
-      - TS_AUTH_ONCE=true
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_ENABLE_HEALTH_CHECK=true
-      - TS_EXTRA_ARGS=--netfilter-mode=off --accept-dns=false
-      - TS_USERSPACE=true
-      - TZ=${TZ}
-    volumes:
-      - ${CONFIG_ROOT}/tailscale/state:/var/lib/tailscale
+    devices:
+      - /dev/dri:/dev/dri
     restart: unless-stopped
     networks:
       - media
@@ -212,6 +198,26 @@ services:
         restart: unless-stopped
         networks:
           - media
+
+  hbbs:
+    container_name: hbbs
+    image: rustdesk/rustdesk-server:latest
+    command: hbbs
+    volumes:
+      - ${CONFIG_ROOT}/rustdesk/data:/root
+    network_mode: "host"
+    depends_on:
+      - hbbr
+    restart: unless-stopped
+
+  hbbr:
+    container_name: hbbr
+    image: rustdesk/rustdesk-server:latest
+    command: hbbr
+    volumes:
+      - ${CONFIG_ROOT}/rustdesk/data:/root
+    network_mode: "host"
+    restart: unless-stopped
 
 networks:
   media:
