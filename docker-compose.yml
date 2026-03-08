@@ -1,4 +1,14 @@
 services:
+
+  dozzle:
+    container_name: dozzle
+    image: amir20/dozzle:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8085:8080"
+    restart: unless-stopped
+
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
