@@ -247,6 +247,26 @@ services:
     init: true
     networks:
       - media
+  
+  decluttarr:
+    image: ghcr.io/manimatter/decluttarr:latest
+    container_name: decluttarr
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      PUID: ${PUID}
+      PGID: ${PGID}
+      RADARR_API_KEY: ${RADARR_API_KEY}
+      SONARR_API_KEY: ${SONARR_API_KEY}
+      QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME}
+      QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD}
+    volumes:
+      - ${CONFIG_ROOT}/decluttarr/config.yaml:/app/config/config.yaml
+      - ${MEDIA_ROOT}/movies:/movies:ro
+      - ${MEDIA_ROOT}/shows:/tv:ro
+      - ${DOWNLOADS_ROOT}:/downloads:ro
+    networks:
+      - media
 
 networks:
   media:
