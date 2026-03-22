@@ -292,6 +292,34 @@ services:
     networks:
       - media
 
+  cross-seed:
+    image: ghcr.io/cross-seed/cross-seed:6
+    container_name: cross-seed
+    user: ${PUID}:${PGID}
+    ports:
+      - "2468:2468"
+    volumes:
+      - ${CONFIG_ROOT}/cross-seed:/config
+      - ${MEDIA_ROOT}:/media
+      - ${DOWNLOADS_ROOT}:/downloads
+    environment:
+      - RADARR_API_KEY=${RADARR_API_KEY}
+      - SONARR_API_KEY=${SONARR_API_KEY}
+      - QBITTORRENT_USERNAME=${QBITTORRENT_USERNAME}
+      - QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD}
+      - PROWLARR_API_KEY=${PROWLARR_API_KEY}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - sleep 60; cross-seed clear-indexer-failures || true; exec cross-seed daemon
+    restart: unless-stopped
+    networks:
+      - media
+    depends_on:
+      - radarr
+      - sonarr
+      - qbittorrent
+      - prowlarr
+
 networks:
   media:
     driver: bridge
