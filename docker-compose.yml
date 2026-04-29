@@ -291,6 +291,7 @@ services:
     restart: unless-stopped
     networks:
       - media
+    profiles: ["optional"]
 
   cross-seed:
     image: ghcr.io/cross-seed/cross-seed:6
@@ -319,6 +320,44 @@ services:
       - sonarr
       - qbittorrent
       - prowlarr
+
+  calibre:
+    image: ghcr.io/linuxserver/calibre:version-v8.6.0
+    container_name: calibre
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${CONFIG_ROOT}/calibre/config:/config
+      - ${MEDIA_ROOT}/books:/books
+      - ${BOOKS_INBOX_ROOT}:/books-inbox
+      - ${DOWNLOADS_ROOT}:/downloads
+    ports:
+      - 7384:8080
+      - 7385:8081
+      - 9090:9090
+    restart: unless-stopped
+    networks:
+      - media
+
+  shelfmark:
+    image: ghcr.io/calibrain/shelfmark:latest
+    container_name: shelfmark
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - 8084:8084
+    restart: unless-stopped
+    volumes:
+      - ${MEDIA_ROOT}/books:/books
+      - ${BOOKS_INBOX_ROOT}:/books-inbox
+      - ${CONFIG_ROOT}/shelfmark:/config
+      - ${DOWNLOADS_ROOT}:/downloads
+    networks:
+      - media
 
 networks:
   media:
