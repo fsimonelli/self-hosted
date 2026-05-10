@@ -53,8 +53,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${CONFIG_ROOT}/radarr:/config
-      - ${MEDIA_ROOT}/movies:/movies
-      - ${DOWNLOADS_ROOT}:/downloads
+      - ${MEDIA_ROOT}:/data
     ports:
       - "7878:7878"
     restart: unless-stopped
@@ -73,8 +72,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${CONFIG_ROOT}/sonarr:/config
-      - ${MEDIA_ROOT}/shows:/tv
-      - ${DOWNLOADS_ROOT}:/downloads
+      - ${MEDIA_ROOT}:/data
     ports:
       - "8989:8989"
     restart: unless-stopped
@@ -93,8 +91,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${CONFIG_ROOT}/bazarr:/config
-      - ${MEDIA_ROOT}/movies:/movies
-      - ${MEDIA_ROOT}/shows:/tv
+      - ${MEDIA_ROOT}:/data
     ports:
       - "6767:6767"
     restart: unless-stopped
@@ -129,7 +126,7 @@ services:
       - WEBUI_PORT=8080
     volumes:
       - ${CONFIG_ROOT}/qbittorrent:/config
-      - ${DOWNLOADS_ROOT}:/downloads
+      - ${MEDIA_ROOT}:/data
     ports:
       - "8080:8080"
       - "6881:6881"
@@ -179,7 +176,6 @@ services:
       - ${CONFIG_ROOT}/duplicati:/config
       - ${CONFIG_ROOT}:/source/config:ro
       - ${MEDIA_ROOT}:/source/media:ro
-      - ${DOWNLOADS_ROOT}:/source/downloads:ro
       - ./backups:/backups
     ports:
       - "8200:8200"
@@ -256,7 +252,7 @@ services:
       - "11011:11011"
     volumes:
       - ${CONFIG_ROOT}/cleanuparr:/config
-      - ${DOWNLOADS_ROOT}:/downloads
+      - ${MEDIA_ROOT}:/data
     environment:
       - PORT=11011
       - BASE_PATH=
@@ -301,8 +297,7 @@ services:
       - "2468:2468"
     volumes:
       - ${CONFIG_ROOT}/cross-seed:/config
-      - ${MEDIA_ROOT}:/media
-      - ${DOWNLOADS_ROOT}:/downloads
+      - ${MEDIA_ROOT}:/data
     environment:
       - RADARR_API_KEY=${RADARR_API_KEY}
       - SONARR_API_KEY=${SONARR_API_KEY}
@@ -330,9 +325,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ${CONFIG_ROOT}/calibre/config:/config
-      - ${MEDIA_ROOT}/books:/books
-      - ${BOOKS_INBOX_ROOT}:/books-inbox
-      - ${DOWNLOADS_ROOT}:/downloads
+      - ${MEDIA_ROOT}:/data
     ports:
       - 7384:8080
       - 7385:8081
@@ -352,10 +345,8 @@ services:
       - 8084:8084
     restart: unless-stopped
     volumes:
-      - ${MEDIA_ROOT}/books:/books
-      - ${BOOKS_INBOX_ROOT}:/books-inbox
+      - ${MEDIA_ROOT}:/data
       - ${CONFIG_ROOT}/shelfmark:/config
-      - ${DOWNLOADS_ROOT}:/downloads
     networks:
       - media
 
