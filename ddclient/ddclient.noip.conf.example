@@ -1,0 +1,17 @@
+# Copy this file to:
+#   ${CONFIG_ROOT}/ddclient/ddclient.conf
+#
+# Create a No-IP DDNS key (recommended) and use those credentials here.
+# Hostname should be your full host, for example: myhomeserver.ddns.net
+
+daemon=300
+syslog=yes
+pid=/var/run/ddclient/ddclient.pid
+ssl=yes
+use=web, web=ifconfig.me/ip
+
+protocol=dyndns2
+server=dynupdate.no-ip.com
+login=PUT_YOUR_NOIP_USERNAME_OR_DDNS_KEY_USER_HERE
+password=PUT_YOUR_NOIP_PASSWORD_OR_DDNS_KEY_PASSWORD_HERE
+your-hostname.ddns.net

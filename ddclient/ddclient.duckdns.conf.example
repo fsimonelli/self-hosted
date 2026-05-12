@@ -1,0 +1,16 @@
+# Copy this file to:
+#   ${CONFIG_ROOT}/ddclient/ddclient.conf
+#
+# Then set your DuckDNS token and your DuckDNS subdomain(s) below.
+# Domains are comma-separated and should NOT include ".duckdns.org".
+
+daemon=300
+syslog=yes
+pid=/var/run/ddclient/ddclient.pid
+ssl=yes
+use=web, web=ifconfig.me/ip
+
+protocol=duckdns
+server=www.duckdns.org
+password=PUT_YOUR_DUCKDNS_TOKEN_HERE
+yourdomain

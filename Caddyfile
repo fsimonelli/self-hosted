@@ -1,0 +1,84 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# One domain env var per HTTP-capable service.
+{$DOZZLE_DOMAIN} {
+	reverse_proxy dozzle:8080
+}
+
+{$JELLYFIN_DOMAIN} {
+	reverse_proxy jellyfin:8096
+}
+
+{$MEILISEARCH_DOMAIN} {
+	reverse_proxy meilisearch:7700
+}
+
+{$PROWLARR_DOMAIN} {
+	reverse_proxy prowlarr:9696
+}
+
+{$RADARR_DOMAIN} {
+	reverse_proxy radarr:7878
+}
+
+{$SONARR_DOMAIN} {
+	reverse_proxy sonarr:8989
+}
+
+{$BAZARR_DOMAIN} {
+	reverse_proxy bazarr:6767
+}
+
+{$FLARESOLVERR_DOMAIN} {
+	reverse_proxy flaresolverr:8191
+}
+
+{$QBITTORRENT_DOMAIN} {
+	reverse_proxy qbittorrent:8080
+}
+
+{$JELLYSEERR_DOMAIN} {
+	reverse_proxy jellyseerr:5055
+}
+
+{$DUPLICATI_DOMAIN} {
+	reverse_proxy duplicati:8200
+}
+
+{$PROFILARR_DOMAIN} {
+	reverse_proxy profilarr:6868
+}
+
+{$NTFY_DOMAIN} {
+	reverse_proxy ntfy:80
+}
+
+{$CLEANUPARR_DOMAIN} {
+	reverse_proxy cleanuparr:11011
+}
+
+{$MAINTAINERR_DOMAIN} {
+	reverse_proxy maintainerr:6246
+}
+
+{$CROSS_SEED_DOMAIN} {
+	reverse_proxy cross-seed:2468
+}
+
+{$CALIBRE_DOMAIN} {
+	reverse_proxy calibre:8080
+}
+
+{$CALIBRE_DESKTOP_DOMAIN} {
+	reverse_proxy calibre:8081
+}
+
+{$CALIBRE_CONTENT_DOMAIN} {
+	reverse_proxy calibre:9090
+}
+
+{$SHELFMARK_DOMAIN} {
+	reverse_proxy shelfmark:8084
+}

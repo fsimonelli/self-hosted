@@ -370,6 +370,61 @@ services:
     networks:
       - media
 
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CONFIG_ROOT}/caddy/data:/data
+      - ${CONFIG_ROOT}/caddy/config:/config
+    environment:
+      - ACME_EMAIL=${ACME_EMAIL}
+      - DOZZLE_DOMAIN=${DOZZLE_DOMAIN}
+      - JELLYFIN_DOMAIN=${JELLYFIN_DOMAIN}
+      - MEILISEARCH_DOMAIN=${MEILISEARCH_DOMAIN}
+      - PROWLARR_DOMAIN=${PROWLARR_DOMAIN}
+      - RADARR_DOMAIN=${RADARR_DOMAIN}
+      - SONARR_DOMAIN=${SONARR_DOMAIN}
+      - BAZARR_DOMAIN=${BAZARR_DOMAIN}
+      - FLARESOLVERR_DOMAIN=${FLARESOLVERR_DOMAIN}
+      - QBITTORRENT_DOMAIN=${QBITTORRENT_DOMAIN}
+      - JELLYSEERR_DOMAIN=${JELLYSEERR_DOMAIN}
+      - DUPLICATI_DOMAIN=${DUPLICATI_DOMAIN}
+      - PROFILARR_DOMAIN=${PROFILARR_DOMAIN}
+      - NTFY_DOMAIN=${NTFY_DOMAIN}
+      - CLEANUPARR_DOMAIN=${CLEANUPARR_DOMAIN}
+      - MAINTAINERR_DOMAIN=${MAINTAINERR_DOMAIN}
+      - CROSS_SEED_DOMAIN=${CROSS_SEED_DOMAIN}
+      - CALIBRE_DOMAIN=${CALIBRE_DOMAIN}
+      - CALIBRE_DESKTOP_DOMAIN=${CALIBRE_DESKTOP_DOMAIN}
+      - CALIBRE_CONTENT_DOMAIN=${CALIBRE_CONTENT_DOMAIN}
+      - SHELFMARK_DOMAIN=${SHELFMARK_DOMAIN}
+    restart: unless-stopped
+    depends_on:
+      - jellyfin
+      - jellyseerr
+      - sonarr
+      - radarr
+      - prowlarr
+      - qbittorrent
+      - ntfy
+    networks:
+      - media
+
+  ddclient:
+    image: linuxserver/ddclient:latest
+    container_name: ddclient
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${CONFIG_ROOT}/ddclient:/config
+    restart: unless-stopped
+
 networks:
   media:
     driver: bridge
