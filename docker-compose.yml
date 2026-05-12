@@ -102,7 +102,7 @@ services:
       - media
 
   bazarr:
-    image: linuxserver/bazarr:latest
+    image: ghcr.io/lavx/bazarr:latest
     container_name: bazarr
     environment:
       - PUID=${PUID}
@@ -120,6 +120,26 @@ services:
       - sonarr
     networks:
       - media
+  
+  opensubtitles-scraper:
+    image: ghcr.io/lavx/opensubtitles-scraper:latest
+    container_name: opensubtitles-scraper
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      flaresolverr:
+        condition: service_healthy
+    environment:
+      - FLARESOLVERR_URL=http://flaresolverr:8191/v1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+    networks:
+      - media
 
   flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
@@ -132,6 +152,12 @@ services:
     ports:
       - "8191:8191"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8191/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
     networks:
       - media
 
@@ -382,25 +408,12 @@ services:
       - ${CONFIG_ROOT}/caddy/config:/config
     environment:
       - ACME_EMAIL=${ACME_EMAIL}
-      - DOZZLE_DOMAIN=${DOZZLE_DOMAIN}
       - JELLYFIN_DOMAIN=${JELLYFIN_DOMAIN}
-      - MEILISEARCH_DOMAIN=${MEILISEARCH_DOMAIN}
-      - PROWLARR_DOMAIN=${PROWLARR_DOMAIN}
       - RADARR_DOMAIN=${RADARR_DOMAIN}
       - SONARR_DOMAIN=${SONARR_DOMAIN}
-      - BAZARR_DOMAIN=${BAZARR_DOMAIN}
-      - FLARESOLVERR_DOMAIN=${FLARESOLVERR_DOMAIN}
-      - QBITTORRENT_DOMAIN=${QBITTORRENT_DOMAIN}
       - JELLYSEERR_DOMAIN=${JELLYSEERR_DOMAIN}
-      - DUPLICATI_DOMAIN=${DUPLICATI_DOMAIN}
-      - PROFILARR_DOMAIN=${PROFILARR_DOMAIN}
       - NTFY_DOMAIN=${NTFY_DOMAIN}
-      - CLEANUPARR_DOMAIN=${CLEANUPARR_DOMAIN}
-      - MAINTAINERR_DOMAIN=${MAINTAINERR_DOMAIN}
-      - CROSS_SEED_DOMAIN=${CROSS_SEED_DOMAIN}
-      - CALIBRE_DOMAIN=${CALIBRE_DOMAIN}
-      - CALIBRE_DESKTOP_DOMAIN=${CALIBRE_DESKTOP_DOMAIN}
-      - CALIBRE_CONTENT_DOMAIN=${CALIBRE_CONTENT_DOMAIN}
+      - BAZARR_DOMAIN=${BAZARR_DOMAIN}
       - SHELFMARK_DOMAIN=${SHELFMARK_DOMAIN}
     restart: unless-stopped
     depends_on:
