@@ -349,6 +349,7 @@ This repo now includes a `crowdsec` service that:
 - `crowdsec/parsers/s02-enrich/local-whitelist.yaml`
 - `crowdsec/parsers/s02-enrich/jellyseerr-whitelist.yaml`
 - `crowdsec/parsers/s02-enrich/shelfmark-whitelist.yaml`
+- `crowdsec/parsers/s02-enrich/ntfy-whitelist.yaml`
 
 ### 1) Set environment value
 
@@ -534,7 +535,7 @@ docker exec crowdsec cscli decisions delete --ip 203.0.113.123
 
 - Keep admin apps private (VPN-only).
 - Leave `local-whitelist.yaml` for LAN/Tailscale ranges to avoid self-bans.
-- Leave `jellyseerr-whitelist.yaml` and `shelfmark-whitelist.yaml` scoped to their specific hostnames so normal app browsing does not trip HTTP crawl detection globally.
+- Leave app-specific whitelists scoped to their specific hostnames so normal app browsing does not trip HTTP crawl detection globally.
 - Review decisions periodically:
 
 ```bash

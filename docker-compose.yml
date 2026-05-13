@@ -387,6 +387,12 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
+      - EMAIL_SMTP_SECURITY=${EMAIL_SMTP_SECURITY}
+      - EMAIL_SMTP_USERNAME=${EMAIL_SMTP_USERNAME}
+      - EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD}
+      - EMAIL_SMTP_SUBJECT_TEMPLATE=${EMAIL_SMTP_SUBJECT_TEMPLATE}
     ports:
       - 8084:8084
     restart: unless-stopped
@@ -450,6 +456,7 @@ services:
       - ./crowdsec/parsers/s02-enrich/local-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/local-whitelist.yaml:ro
       - ./crowdsec/parsers/s02-enrich/jellyseerr-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/jellyseerr-whitelist.yaml:ro
       - ./crowdsec/parsers/s02-enrich/shelfmark-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/shelfmark-whitelist.yaml:ro
+      - ./crowdsec/parsers/s02-enrich/ntfy-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/ntfy-whitelist.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - caddy
