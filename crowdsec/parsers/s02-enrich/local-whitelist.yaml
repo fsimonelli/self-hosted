@@ -1,0 +1,11 @@
+name: local/whitelist-private-and-tailscale
+description: "Do not generate decisions for local/private ranges and Tailscale CGNAT range"
+whitelist:
+  reason: "internal and overlay networking"
+  cidr:
+    - "127.0.0.0/8"
+    - "::1/128"
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "192.168.0.0/16"
+    - "100.64.0.0/10"

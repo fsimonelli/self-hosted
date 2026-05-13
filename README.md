@@ -332,3 +332,209 @@ Check logs:
 docker logs --tail 200 -f ddclient
 docker logs --tail 200 -f caddy
 ```
+
+## 14. CrowdSec (IP reputation + GeoIP blocking)
+
+This repo now includes a `crowdsec` service that:
+
+- reads `caddy` logs directly from Docker
+- applies HTTP attack scenarios (`crowdsecurity/caddy`, `crowdsecurity/http-cve`)
+- enriches events with GeoIP (`crowdsecurity/geoip-enrich`)
+- applies a local country block scenario (`local/caddy-geo-block`)
+
+### Files added
+
+- `crowdsec/acquis.d/caddy.yaml`
+- `crowdsec/scenarios/local-caddy-geo-block.yaml`
+- `crowdsec/parsers/s02-enrich/local-whitelist.yaml`
+
+### 1) Set environment value
+
+In `.env` set:
+
+- `CROWDSEC_BOUNCER_KEY` to a long random alphanumeric key
+
+### 2) Start CrowdSec
+
+```bash
+docker compose --env-file .env up -d crowdsec
+docker logs --tail 200 -f crowdsec
+```
+
+### 3) Verify parser/scenario loading
+
+```bash
+docker exec crowdsec cscli collections list
+docker exec crowdsec cscli parsers list
+docker exec crowdsec cscli scenarios list
+```
+
+### 4) Enable actual blocking (required)
+
+CrowdSec detects and decides; it does not block by itself.  
+Install the firewall bouncer on the host:
+
+```bash
+# nftables hosts
+sudo apt install crowdsec-firewall-bouncer-nftables
+
+# or iptables hosts
+sudo apt install crowdsec-firewall-bouncer-iptables
+```
+
+Then set the bouncer key from `.env` in:
+
+- `/etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml`
+
+Minimal values:
+
+```yaml
+api_url: http://127.0.0.1:8087
+api_key: <CROWDSEC_BOUNCER_KEY>
+mode: nftables
+```
+
+Restart bouncer:
+
+```bash
+sudo systemctl restart crowdsec-firewall-bouncer
+sudo systemctl status crowdsec-firewall-bouncer
+```
+
+Verify the bouncer is pulling decisions:
+
+```bash
+docker exec crowdsec cscli bouncers list
+```
+
+The `firewall` bouncer should show a recent `Last API pull`.
+
+### 5) Test the setup
+
+Safe CrowdSec decision test:
+
+```bash
+docker exec crowdsec cscli decisions add --ip 203.0.113.123 --duration 2m --reason setup-test
+docker exec crowdsec cscli decisions list
+docker exec crowdsec cscli decisions delete --ip 203.0.113.123
+```
+
+After the firewall bouncer is installed, confirm it saw the test:
+
+```bash
+docker exec crowdsec cscli bouncers list
+sudo journalctl -u crowdsec-firewall-bouncer -n 50 --no-pager
+```
+
+Live HTTP test from an external network:
+
+```bash
+curl -k https://<your-public-domain>/.env
+curl -k https://<your-public-domain>/.git/config
+docker exec crowdsec cscli alerts list --limit 20
+docker exec crowdsec cscli decisions list
+```
+
+If you accidentally ban yourself:
+
+```bash
+docker exec crowdsec cscli decisions delete --ip <your-public-ip>
+```
+
+### 6) Tune country allowlist
+
+Edit:
+
+- `crowdsec/scenarios/local-caddy-geo-block.yaml`
+
+Default allowed countries:
+
+- `UY`, `AR`, `BR`
+
+Change the list in this expression:
+
+```yaml
+evt.Enriched.IsoCode not in ['UY', 'AR', 'BR']
+```
+
+Then restart crowdsec:
+
+```bash
+docker compose --env-file .env restart crowdsec
+```
+
+### 7) Useful CrowdSec commands
+
+Overall health and parser status:
+
+```bash
+docker exec crowdsec cscli metrics
+```
+
+Active bans currently being enforced:
+
+```bash
+docker exec crowdsec cscli decisions list
+```
+
+Recent alerts:
+
+```bash
+docker exec crowdsec cscli alerts list --limit 50
+```
+
+Geo-blocked IPs:
+
+```bash
+docker exec crowdsec cscli alerts list --scenario local/caddy-geo-block --limit 50
+```
+
+Inspect one alert:
+
+```bash
+docker exec crowdsec cscli alerts inspect <alert-id>
+```
+
+Check that the host firewall bouncer is connected:
+
+```bash
+docker exec crowdsec cscli bouncers list
+systemctl status crowdsec-firewall-bouncer --no-pager
+```
+
+Follow raw Caddy access logs:
+
+```bash
+docker logs -f caddy
+```
+
+Show recent Caddy logs:
+
+```bash
+docker logs --tail 100 caddy
+```
+
+Unban an IP:
+
+```bash
+docker exec crowdsec cscli decisions delete --ip <ip-address>
+```
+
+Add a short manual test ban:
+
+```bash
+docker exec crowdsec cscli decisions add --ip 203.0.113.123 --duration 2m --reason setup-test
+docker exec crowdsec cscli decisions list
+docker exec crowdsec cscli decisions delete --ip 203.0.113.123
+```
+
+### Useful hardening extras
+
+- Keep admin apps private (VPN-only).
+- Leave `local-whitelist.yaml` for LAN/Tailscale ranges to avoid self-bans.
+- Review decisions periodically:
+
+```bash
+docker exec crowdsec cscli decisions list
+docker exec crowdsec cscli alerts list --limit 50
+```

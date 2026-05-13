@@ -438,6 +438,29 @@ services:
       - ${CONFIG_ROOT}/ddclient:/config
     restart: unless-stopped
 
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    container_name: crowdsec
+    ports:
+      - "127.0.0.1:8087:8080"
+    environment:
+      - TZ=${TZ}
+      - COLLECTIONS=crowdsecurity/caddy crowdsecurity/http-cve crowdsecurity/whitelist-good-actors
+      - PARSERS=crowdsecurity/docker-logs crowdsecurity/geoip-enrich
+      - BOUNCER_KEY_firewall=${CROWDSEC_BOUNCER_KEY}
+    volumes:
+      - ${CONFIG_ROOT}/crowdsec/etc:/etc/crowdsec
+      - ${CONFIG_ROOT}/crowdsec/data:/var/lib/crowdsec/data
+      - ./crowdsec/acquis.d/caddy.yaml:/etc/crowdsec/acquis.d/caddy.yaml:ro
+      - ./crowdsec/scenarios/local-caddy-geo-block.yaml:/etc/crowdsec/scenarios/local-caddy-geo-block.yaml:ro
+      - ./crowdsec/parsers/s02-enrich/local-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/local-whitelist.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - caddy
+    restart: unless-stopped
+    networks:
+      - media
+
 networks:
   media:
     driver: bridge
