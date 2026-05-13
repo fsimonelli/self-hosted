@@ -14,21 +14,6 @@
 	reverse_proxy jellyfin:8096
 }
 
-{$RADARR_DOMAIN} {
-	import crowdsec_access_log
-	reverse_proxy radarr:7878
-}
-
-{$SONARR_DOMAIN} {
-	import crowdsec_access_log
-	reverse_proxy sonarr:8989
-}
-
-{$BAZARR_DOMAIN} {
-	import crowdsec_access_log
-	reverse_proxy bazarr:6767
-}
-
 {$JELLYSEERR_DOMAIN} {
 	import crowdsec_access_log
 	reverse_proxy jellyseerr:5055

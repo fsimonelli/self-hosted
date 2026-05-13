@@ -409,21 +409,15 @@ services:
     environment:
       - ACME_EMAIL=${ACME_EMAIL}
       - JELLYFIN_DOMAIN=${JELLYFIN_DOMAIN}
-      - RADARR_DOMAIN=${RADARR_DOMAIN}
-      - SONARR_DOMAIN=${SONARR_DOMAIN}
       - JELLYSEERR_DOMAIN=${JELLYSEERR_DOMAIN}
       - NTFY_DOMAIN=${NTFY_DOMAIN}
-      - BAZARR_DOMAIN=${BAZARR_DOMAIN}
       - SHELFMARK_DOMAIN=${SHELFMARK_DOMAIN}
     restart: unless-stopped
     depends_on:
       - jellyfin
       - jellyseerr
-      - sonarr
-      - radarr
-      - prowlarr
-      - qbittorrent
       - ntfy
+      - shelfmark
     networks:
       - media
 
