@@ -448,6 +448,8 @@ services:
       - ./crowdsec/acquis.d/caddy.yaml:/etc/crowdsec/acquis.d/caddy.yaml:ro
       - ./crowdsec/scenarios/local-caddy-geo-block.yaml:/etc/crowdsec/scenarios/local-caddy-geo-block.yaml:ro
       - ./crowdsec/parsers/s02-enrich/local-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/local-whitelist.yaml:ro
+      - ./crowdsec/parsers/s02-enrich/jellyseerr-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/jellyseerr-whitelist.yaml:ro
+      - ./crowdsec/parsers/s02-enrich/shelfmark-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/shelfmark-whitelist.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - caddy

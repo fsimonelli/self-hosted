@@ -1,0 +1,11 @@
+name: local/shelfmark-whitelist
+description: "Whitelist normal Shelfmark UI/API/socket traffic"
+filter: "evt.Meta.service == 'http' && evt.Meta.log_type in ['http_access-log', 'http_error-log'] && evt.Meta.target_fqdn == 'alexandria.elliflix.opik.net'"
+whitelist:
+  reason: "normal Shelfmark app traffic"
+  expression:
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/(assets/.*|theme-init\\.js|logo\\.png|favicon\\.ico|robots\\.txt)$'
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Meta.http_verb == 'GET' && evt.Meta.http_path in ['/', '/login']
+    - evt.Meta.http_status in ['200', '304', '401', '499'] && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/api/(auth/check|status|requests|request-policy|metadata/providers|config|activity/(snapshot|history)|settings|settings/users|releases|covers/[a-f0-9]+|admin/(users(/[0-9]+(/(delivery-preferences|notification-preferences|search-preferences))?)?|settings/overrides-summary|download-defaults|requests)|users/me/edit-context)$'
+    - evt.Meta.http_status in ['101', '200', '499'] && evt.Meta.http_verb in ['GET', 'POST'] && evt.Meta.http_path == '/socket.io/'
+    - evt.Meta.http_status == '200' && evt.Meta.http_verb == 'POST' && evt.Meta.http_path == '/api/auth/login'
