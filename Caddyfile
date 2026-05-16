@@ -19,11 +19,6 @@
 	reverse_proxy jellyseerr:5055
 }
 
-{$NTFY_DOMAIN} {
-	import crowdsec_access_log
-	reverse_proxy ntfy:80
-}
-
 {$SHELFMARK_DOMAIN} {
 	import crowdsec_access_log
 	reverse_proxy shelfmark:8084
