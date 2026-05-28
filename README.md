@@ -43,7 +43,7 @@ Meaning:
 
 Most services join the user-defined network `media`, so they can reach each other by service name:
 
-- `qbittorrent:8080`
+- `protonvpn:8080` (qBittorrent shares ProtonVPN network namespace)
 - `flaresolverr:8191`
 - `prowlarr:9696`
 
@@ -103,6 +103,12 @@ Inside containers, do not use `localhost` for other services.
 Use service names from compose, for example:
 
 - FlareSolverr in Prowlarr: `http://flaresolverr:8191`
+- qBittorrent behind ProtonVPN: `http://protonvpn:8080`
+
+For ProtonVPN port-forward sync with Gluetun:
+
+- Keep qBittorrent WebUI enabled on `QBITTORRENT_WEBUI_PORT` (default `8080`)
+- In qBittorrent WebUI, enable `Bypass authentication for clients on localhost`
 
 Why: `localhost` inside Prowlarr points to Prowlarr itself, not FlareSolverr.
 
@@ -237,6 +243,9 @@ docker exec tailscale tailscale ip -4
 
 # check in-container disk visibility
 docker exec radarr df -h /movies /downloads
+
+# check ProtonVPN forwarded port == qBittorrent listen port
+./check-protonvpn-port-sync.sh
 ```
 
 ## 13. Public HTTPS with Dynamic IP (Caddy + Dynu/DuckDNS/No-IP)

@@ -1,4 +1,5 @@
 .env
+vpn/
 backups/*
 !backups/.gitkeep
 !backups/jellyfin/
