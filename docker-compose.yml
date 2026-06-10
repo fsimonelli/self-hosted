@@ -12,6 +12,39 @@ services:
     networks:
       - media
 
+  beszel:
+    container_name: beszel
+    image: henrygd/beszel:latest
+    environment:
+      - APP_URL=${BESZEL_APP_URL:-http://localhost:8090}
+    volumes:
+      - ${CONFIG_ROOT}/beszel/data:/beszel_data
+      - ${CONFIG_ROOT}/beszel/socket:/beszel_socket
+    ports:
+      - "127.0.0.1:${BESZEL_PORT:-8090}:8090"
+    restart: unless-stopped
+    networks:
+      - media
+
+  beszel-agent:
+    container_name: beszel-agent
+    image: henrygd/beszel-agent:latest
+    profiles:
+      - beszel-agent
+    network_mode: host
+    environment:
+      - LISTEN=/beszel_socket/beszel.sock
+      - HUB_URL=http://localhost:${BESZEL_PORT:-8090}
+      - TOKEN=${BESZEL_AGENT_TOKEN:-}
+      - KEY=${BESZEL_AGENT_KEY:-}
+    volumes:
+      - ${CONFIG_ROOT}/beszel/agent:/var/lib/beszel-agent
+      - ${CONFIG_ROOT}/beszel/socket:/beszel_socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    depends_on:
+      - beszel
+
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin

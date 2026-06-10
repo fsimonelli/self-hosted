@@ -12,6 +12,7 @@ Docker Compose stack for a media server with:
 - qBittorrent
 - Jellyseerr
 - Duplicati
+- Beszel
 
 This README captures the setup decisions and troubleshooting notes for future maintenance.
 
@@ -83,6 +84,7 @@ Future-proofing choice:
 - qBittorrent Web UI: `8080`
 - Jellyseerr: `5055`
 - Duplicati: `8200`
+- Beszel: `8090` bound to host loopback by default
 
 ## 5. Bring up / inspect / restart
 
@@ -138,6 +140,7 @@ You can proxy services through Tailscale explicitly if needed:
 docker exec tailscale tailscale serve --bg --http=8096 http://jellyfin:8096
 docker exec tailscale tailscale serve --bg --http=8989 http://sonarr:8989
 docker exec tailscale tailscale serve --bg --http=7878 http://radarr:7878
+docker exec tailscale tailscale serve --bg --http=<tailnet-port> http://<service-name>:<container-port>
 ```
 
 Check configured serves:
@@ -148,7 +151,68 @@ docker exec tailscale tailscale serve status
 
 With persistent state mounted (`${CONFIG_ROOT}/tailscale/state`), serve config usually survives restarts.
 
-## 8. Duplicati instead of custom backup scripts
+## 8. Beszel monitoring
+
+Beszel provides host and container resource monitoring with historical data and alerts.
+
+The stack runs:
+
+- `beszel`: web hub, persisted at `${CONFIG_ROOT}/beszel/data`
+- `beszel-agent`: local server/container collector, with read-only Docker socket access
+
+Before first start, set these in `.env` if you want values different from the defaults:
+
+```bash
+BESZEL_PORT=8090
+BESZEL_APP_URL=http://localhost:8090
+```
+
+Start the Beszel hub:
+
+```bash
+docker compose --env-file .env up -d beszel
+```
+
+Open it locally:
+
+```bash
+http://127.0.0.1:8090/
+```
+
+Expose it through the tailnet:
+
+```bash
+tailscale serve --bg --http=8090 http://127.0.0.1:8090
+tailscale serve status
+```
+
+If Tailscale runs as a container on the `media` Docker network, use the container route instead:
+
+```bash
+docker exec tailscale tailscale serve --bg --http=8090 http://beszel:8090
+docker exec tailscale tailscale serve status
+```
+
+On first login, create the admin account. Then add the local system using Beszel's UI. Copy the generated token and public key into `.env`:
+
+```bash
+BESZEL_AGENT_TOKEN=...
+BESZEL_AGENT_KEY=...
+```
+
+Start the agent:
+
+```bash
+docker compose --profile beszel-agent --env-file .env up -d beszel-agent
+```
+
+When adding the local system in Beszel, use this Host / IP value:
+
+```bash
+/beszel_socket/beszel.sock
+```
+
+## 9. Duplicati instead of custom backup scripts
 
 Duplicati is the backup solution for this stack.
 
@@ -165,7 +229,7 @@ Recommended backup scope for disaster recovery:
 
 Important: local-only backups are not enough for disaster recovery. Prefer offsite destinations (cloud/NAS/remote).
 
-## 9. Known gotchas and fixes
+## 10. Known gotchas and fixes
 
 ### A. Jellyseerr warning about `/app/config`
 
@@ -199,7 +263,7 @@ Running on Docker Desktop context (`desktop-linux`) can reflect VM/filesharing l
 
 Verify ownership/permissions on host paths (`CONFIG_ROOT`, `MEDIA_ROOT`, `DOWNLOADS_ROOT`) match `PUID:PGID` and that directories are writable by group when needed.
 
-## 10. Operational checklist (new machine or rebuild)
+## 11. Operational checklist (new machine or rebuild)
 
 1. Clone repo
 2. Copy env template:
@@ -219,14 +283,14 @@ docker compose --env-file .env up -d
 6. Verify service health with `docker compose ps` and logs
 7. Configure apps (indexers/download client/library roots)
 
-## 11. Security notes
+## 12. Security notes
 
 - Do not commit `.env`
 - Rotate auth keys if exposed
 - Keep containers and host updated regularly
 - Restrict remote exposure to Tailscale rather than open public ports when possible
 
-## 12. Quick diagnostics
+## 13. Quick diagnostics
 
 ```bash
 # stack status
@@ -248,7 +312,7 @@ docker exec radarr df -h /movies /downloads
 ./check-protonvpn-port-sync.sh
 ```
 
-## 13. Public HTTPS with Dynamic IP (Caddy + Dynu/DuckDNS/No-IP)
+## 14. Public HTTPS with Dynamic IP (Caddy + Dynu/DuckDNS/No-IP)
 
 This stack now includes:
 
@@ -342,7 +406,7 @@ docker logs --tail 200 -f ddclient
 docker logs --tail 200 -f caddy
 ```
 
-## 14. CrowdSec (IP reputation + GeoIP blocking)
+## 15. CrowdSec (IP reputation + GeoIP blocking)
 
 This repo now includes a `crowdsec` service that:
 
