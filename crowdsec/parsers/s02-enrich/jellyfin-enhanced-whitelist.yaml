@@ -1,0 +1,9 @@
+name: local/jellyfin-enhanced-whitelist
+description: "Whitelist normal Jellyfin Enhanced Jellyseerr integration calls"
+filter: "evt.Meta.service == 'http' && evt.Meta.log_type in ['http_access-log', 'http_error-log'] && evt.Meta.target_fqdn == 'apollo.elliflix.opik.net'"
+whitelist:
+  reason: "normal Jellyfin Enhanced Jellyseerr browsing"
+  expression:
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/JellyfinEnhanced/jellyseerr/(movie|tv|request)/[0-9]+$'
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path == '/JellyfinEnhanced/jellyseerr/search'
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/JellyfinEnhanced/tag-cache/[a-f0-9]+$'
