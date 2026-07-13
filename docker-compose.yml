@@ -65,6 +65,30 @@ services:
     networks:
       - media
 
+  jellyfin-usage:
+    build: ./jellyfin-usage
+    container_name: jellyfin-usage
+    user: ${PUID}:${PGID}
+    environment:
+      - TZ=${TZ}
+      - JELLYFIN_DB=/jellyfin-data/jellyfin.db
+      - PLAYBACK_REPORTING_DB=/jellyfin-data/playback_reporting.db
+      - STATE_DB=/data/jellyfin_usage.db
+      - JELLYFIN_USAGE_PASSWORD=${JELLYFIN_USAGE_PASSWORD:-}
+      - JELLYFIN_USAGE_MONTHLY_FEE=${JELLYFIN_USAGE_MONTHLY_FEE:-0}
+      - JELLYFIN_USAGE_CURRENCY=${JELLYFIN_USAGE_CURRENCY:-USD}
+      - JELLYFIN_USAGE_HISTORY_DAYS=${JELLYFIN_USAGE_HISTORY_DAYS:-90}
+    volumes:
+      - ${CONFIG_ROOT}/jellyfin/config/data:/jellyfin-data:ro
+      - ${CONFIG_ROOT}/jellyfin-usage:/data
+    ports:
+      - "127.0.0.1:${JELLYFIN_USAGE_PORT:-8092}:8080"
+    restart: unless-stopped
+    depends_on:
+      - jellyfin
+    networks:
+      - media
+
   meilisearch:
     container_name: meilisearch
     image: getmeili/meilisearch:v1.34
@@ -509,7 +533,8 @@ services:
       - ./crowdsec/acquis.d/caddy.yaml:/etc/crowdsec/acquis.d/caddy.yaml:ro
       - ./crowdsec/scenarios/local-caddy-geo-block.yaml:/etc/crowdsec/scenarios/local-caddy-geo-block.yaml:ro
       - ./crowdsec/parsers/s02-enrich/local-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/local-whitelist.yaml:ro
-      - ./crowdsec/parsers/s02-enrich/antel-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/antel-whitelist.yaml:ro
+      - ./crowdsec/parsers/s02-enrich/antel-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/zz-antel-whitelist.yaml:ro
+      - ./crowdsec/parsers/s02-enrich/jellyfin-enhanced-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/zz-jellyfin-enhanced-whitelist.yaml:ro
       - ./crowdsec/parsers/s02-enrich/jellyseerr-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/jellyseerr-whitelist.yaml:ro
       - ./crowdsec/parsers/s02-enrich/shelfmark-whitelist.yaml:/etc/crowdsec/parsers/s02-enrich/shelfmark-whitelist.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

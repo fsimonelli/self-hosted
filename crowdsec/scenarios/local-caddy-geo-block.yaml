@@ -1,7 +1,7 @@
 type: leaky
 name: local/caddy-geo-block
 description: "Ban IPs hitting Caddy from countries outside the allowed list"
-filter: "evt.Meta.log_type in ['http_access-log', 'http_error-log'] && evt.Meta.source_ip != '' && evt.Enriched.IsoCode != '' && evt.Enriched.IsoCode not in ['UY']"
+filter: "evt.Meta.log_type in ['http_access-log', 'http_error-log'] && evt.Meta.source_ip != '' && evt.Enriched.IsoCode != '' && evt.Enriched.IsoCode not in ['UY', 'ES']"
 groupby: evt.Meta.source_ip
 capacity: 1
 leakspeed: 1m

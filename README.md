@@ -12,6 +12,7 @@ Docker Compose stack for a media server with:
 - qBittorrent
 - Jellyseerr
 - Duplicati
+- Dozzle
 - Beszel
 
 This README captures the setup decisions and troubleshooting notes for future maintenance.
@@ -84,7 +85,9 @@ Future-proofing choice:
 - qBittorrent Web UI: `8080`
 - Jellyseerr: `5055`
 - Duplicati: `8200`
+- Dozzle: `8085`
 - Beszel: `8090` bound to host loopback by default
+- Jellyfin usage/fee tracker: `8092` bound to host loopback by default
 
 ## 5. Bring up / inspect / restart
 
@@ -151,7 +154,54 @@ docker exec tailscale tailscale serve status
 
 With persistent state mounted (`${CONFIG_ROOT}/tailscale/state`), serve config usually survives restarts.
 
-## 8. Beszel monitoring
+## 8. Jellyfin usage and fee tracking
+
+The `jellyfin-usage` service reads Jellyfin's own user database and the Playback Reporting plugin database:
+
+- read-only Jellyfin data: `${CONFIG_ROOT}/jellyfin/config/data/jellyfin.db`
+- read-only Playback Reporting data: `${CONFIG_ROOT}/jellyfin/config/data/playback_reporting.db`
+- writable fee/payment state: `${CONFIG_ROOT}/jellyfin-usage/jellyfin_usage.db`
+
+It ranks users by watch time over the last 30 days, keeps a configurable history window of at least 90 days, and stores fee status separately so Jellyfin's databases are not modified.
+
+Before first start, set these in `.env`:
+
+```bash
+JELLYFIN_USAGE_PORT=8092
+JELLYFIN_USAGE_PASSWORD=replace-with-a-private-password
+JELLYFIN_USAGE_MONTHLY_FEE=0
+JELLYFIN_USAGE_CURRENCY=USD
+JELLYFIN_USAGE_HISTORY_DAYS=90
+```
+
+Start or rebuild the service:
+
+```bash
+docker compose --env-file .env up -d --build jellyfin-usage
+```
+
+Open it locally:
+
+```bash
+http://127.0.0.1:8092/
+```
+
+Expose it through the tailnet:
+
+```bash
+./scripts/tailscale-serve-jellyfin-usage.sh
+docker exec tailscale tailscale serve status
+```
+
+If Tailscale runs on the host instead of a container and the script returns `Access denied`, grant your user operator rights once:
+
+```bash
+sudo tailscale set --operator=$USER
+./scripts/tailscale-serve-jellyfin-usage.sh
+tailscale serve status
+```
+
+## 9. Beszel monitoring
 
 Beszel provides host and container resource monitoring with historical data and alerts.
 
@@ -200,10 +250,10 @@ BESZEL_AGENT_TOKEN=...
 BESZEL_AGENT_KEY=...
 ```
 
-Start the agent:
+Restart the agent:
 
 ```bash
-docker compose --profile beszel-agent --env-file .env up -d beszel-agent
+docker compose --env-file .env up -d beszel-agent
 ```
 
 When adding the local system in Beszel, use this Host / IP value:
@@ -212,7 +262,7 @@ When adding the local system in Beszel, use this Host / IP value:
 /beszel_socket/beszel.sock
 ```
 
-## 9. Duplicati instead of custom backup scripts
+## 10. Duplicati instead of custom backup scripts
 
 Duplicati is the backup solution for this stack.
 
@@ -229,7 +279,7 @@ Recommended backup scope for disaster recovery:
 
 Important: local-only backups are not enough for disaster recovery. Prefer offsite destinations (cloud/NAS/remote).
 
-## 10. Known gotchas and fixes
+## 11. Known gotchas and fixes
 
 ### A. Jellyseerr warning about `/app/config`
 
@@ -289,6 +339,7 @@ docker compose --env-file .env up -d
 - Rotate auth keys if exposed
 - Keep containers and host updated regularly
 - Restrict remote exposure to Tailscale rather than open public ports when possible
+- Set `JELLYFIN_USAGE_PASSWORD` before exposing the usage/fee tracker through Tailscale
 
 ## 13. Quick diagnostics
 
@@ -304,6 +355,7 @@ docker logs --tail 200 prowlarr
 # tailscale status from container
 docker exec tailscale tailscale status
 docker exec tailscale tailscale ip -4
+docker logs --tail 200 jellyfin-usage
 
 # check in-container disk visibility
 docker exec radarr df -h /movies /downloads
@@ -406,7 +458,7 @@ docker logs --tail 200 -f ddclient
 docker logs --tail 200 -f caddy
 ```
 
-## 15. CrowdSec (IP reputation + GeoIP blocking)
+## 14. CrowdSec (IP reputation + GeoIP blocking)
 
 This repo now includes a `crowdsec` service that:
 
@@ -525,12 +577,12 @@ Edit:
 
 Default allowed countries:
 
-- `UY`, `AR`, `BR`
+- `UY`, `ES`
 
 Change the list in this expression:
 
 ```yaml
-evt.Enriched.IsoCode not in ['UY', 'AR', 'BR']
+evt.Enriched.IsoCode not in ['UY', 'ES']
 ```
 
 Then restart crowdsec:
