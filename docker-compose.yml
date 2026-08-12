@@ -259,9 +259,24 @@ services:
       - ./vpn:/gluetun
     ports:
       - "${QBITTORRENT_WEBUI_PORT}:${QBITTORRENT_WEBUI_PORT}"
+      - "127.0.0.1:5010:5010"
     restart: unless-stopped
     networks:
       - media
+
+  mousehole:
+    image: tmmrtn/mousehole:latest
+    container_name: mousehole
+    environment:
+      - TZ=${TZ}
+      - MOUSEHOLE_AUTH_PASSWORD=${MOUSEHOLE_AUTH_PASSWORD}
+    volumes:
+      - ${CONFIG_ROOT}/mousehole:/var/lib/mousehole
+    restart: unless-stopped
+    depends_on:
+      - protonvpn
+    network_mode: "service:protonvpn"
+
   jellyseerr:
     image: ghcr.io/seerr-team/seerr:latest
     container_name: jellyseerr
