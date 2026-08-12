@@ -1,9 +1,13 @@
 name: local/jellyfin-enhanced-whitelist
-description: "Whitelist normal Jellyfin Enhanced Jellyseerr integration calls"
+description: "Whitelist normal Jellyfin and Jellyfin Enhanced browsing calls"
 filter: "evt.Meta.service == 'http' && evt.Meta.log_type in ['http_access-log', 'http_error-log'] && evt.Meta.target_fqdn == 'apollo.elliflix.opik.net'"
 whitelist:
-  reason: "normal Jellyfin Enhanced Jellyseerr browsing"
+  reason: "normal Jellyfin and Jellyfin Enhanced browsing"
   expression:
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/HomeScreen/Section/[A-Za-z0-9]+(\\?.*)?$'
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/HomeScreen/CachedImage/[A-Fa-f0-9]+(\\?.*)?$'
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/Items/[A-Za-z0-9-]+/Images/(Primary|Art|Backdrop|Banner|Box|BoxRear|Disc|Logo|Menu|Screenshot|Thumb)(\\?.*)?$'
+    - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/JellyfinEnhanced/user-settings/[a-f0-9]+/(settings|elsewhere|bookmark|hidden-content|shortcuts)\\.json(\\?.*)?$'
     - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/JellyfinEnhanced/jellyseerr/(movie|tv|request)/[0-9]+$'
     - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path == '/JellyfinEnhanced/jellyseerr/search'
     - evt.Meta.http_status in ['200', '304', '499'] && evt.Parsed.static_ressource == 'false' && evt.Meta.http_verb == 'GET' && evt.Meta.http_path matches '^/JellyfinEnhanced/tag-cache/[a-f0-9]+$'
