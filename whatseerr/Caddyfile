@@ -1,0 +1,7 @@
+:5055 {
+	reverse_proxy jellyseerr:5055
+}
+
+:8584 {
+	reverse_proxy waha:3000
+}

@@ -1,0 +1,23 @@
+{
+  "system": {
+    "host": "whatseerr-upstream"
+  },
+  "seerr": {
+    "url": "http://whatseerr-upstream:5055",
+    "apiKey": "replace-with-jellyseerr-api-key"
+  },
+  "waha": {
+    "url": "http://whatseerr-upstream:8584",
+    "apiKey": "replace-with-waha-api-key",
+    "session": "default"
+  },
+  "mappings": {
+    "userIdMappings": {
+      "598XXXXXXXX": {
+        "userId": 1,
+        "username": "Example User",
+        "admin": false
+      }
+    }
+  }
+}

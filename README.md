@@ -14,6 +14,8 @@ Docker Compose stack for a media server with:
 - Duplicati
 - Dozzle
 - Beszel
+- WAHA
+- Whatseerr
 
 This README captures the setup decisions and troubleshooting notes for future maintenance.
 
@@ -88,6 +90,8 @@ Future-proofing choice:
 - Dozzle: `8085`
 - Beszel: `8090` bound to host loopback by default
 - Jellyfin usage/fee tracker: `8092` bound to host loopback by default
+- WAHA: `8584`
+- Whatseerr: `3006` bound to host loopback by default
 
 ## 5. Bring up / inspect / restart
 
@@ -262,7 +266,102 @@ When adding the local system in Beszel, use this Host / IP value:
 /beszel_socket/beszel.sock
 ```
 
-## 10. Duplicati instead of custom backup scripts
+## 10. WhatsApp notifications through Jellyseerr/Whatseerr
+
+This stack uses:
+
+- `waha` as the local WhatsApp transport/API layer
+- `whatseerr` as the WhatsApp bot and Jellyseerr webhook receiver
+- `whatseerr-upstream` as an internal-only proxy so Whatseerr can use one shared hostname for both Jellyseerr and WAHA
+
+Whatseerr is bound to `127.0.0.1` on the host. WAHA is controlled by `WAHA_BIND_IP`, and neither service is routed through the public Caddy reverse proxy.
+
+Before first start, set these in `.env`:
+
+```bash
+WAHA_PORT=8584
+WAHA_BIND_IP=0.0.0.0
+WAHA_API_KEY=replace-with-long-random-token
+WAHA_DASHBOARD_USERNAME=admin
+WAHA_DASHBOARD_PASSWORD=replace-with-long-random-password
+WHATSAPP_SWAGGER_USERNAME=admin
+WHATSAPP_SWAGGER_PASSWORD=replace-with-long-random-password
+WAHA_SESSION=default
+WHATSEERR_PORT=3006
+```
+
+Set `WAHA_BIND_IP=0.0.0.0` to access WAHA from another machine on the LAN. Use `WAHA_BIND_IP=127.0.0.1` for host-only access.
+
+Start WAHA and pair the `default` WhatsApp session through the WAHA dashboard:
+
+```bash
+docker compose --env-file .env up -d waha
+curl -H "X-Api-Key: $WAHA_API_KEY" http://127.0.0.1:${WAHA_PORT:-8584}/api/sessions
+```
+
+From another machine on the same LAN, open:
+
+```text
+http://<server-lan-ip>:8584/dashboard
+```
+
+The root path, `http://<server-lan-ip>:8584/`, is WAHA's Swagger UI and uses the `WHATSAPP_SWAGGER_USERNAME` / `WHATSAPP_SWAGGER_PASSWORD` credentials.
+
+Then start Whatseerr once and create/edit `${CONFIG_ROOT}/whatseerr/config.json` using `docs/whatseerr-config.example.json` as the template:
+
+```bash
+docker compose --env-file .env up -d whatseerr-upstream whatseerr
+docker logs --tail 100 whatseerr
+```
+
+In Whatseerr config:
+
+- keep `system.host` set to `whatseerr-upstream`
+- set the Jellyseerr API key
+- set the WAHA API key
+- keep the WAHA session as `default` unless you created a different session
+- map WhatsApp users to Jellyseerr user IDs
+
+Add or update user mappings with the helper script:
+
+```bash
+./scripts/whatseerr-users add 598XXXXXXXX 12 "Display Name"
+./scripts/whatseerr-users add 598XXXXXXXX 1 "Admin Name" --admin
+./scripts/whatseerr-users list
+./scripts/whatseerr-users remove 598XXXXXXXX
+```
+
+The script writes a timestamped backup next to `${CONFIG_ROOT}/whatseerr/config.json` before saving changes and restarts Whatseerr by default. Add `--no-restart` before the command to skip the restart.
+
+Configure WAHA session webhooks for Whatseerr request messages:
+
+```text
+http://whatseerr:3006/requests
+```
+
+Enable:
+
+- `session.status`
+- `message.any`
+- `message`
+- `message.reaction`
+
+Configure Jellyseerr's webhook notification agent to send Seerr notifications to Whatseerr:
+
+```text
+http://whatseerr:3006/seerr
+```
+
+Enable the Jellyseerr notification types you want sent over WhatsApp, such as request approved, request available, and request declined.
+
+After config changes:
+
+```bash
+docker compose --env-file .env restart whatseerr
+docker logs --tail 200 whatseerr
+```
+
+## 11. Duplicati instead of custom backup scripts
 
 Duplicati is the backup solution for this stack.
 
@@ -279,7 +378,7 @@ Recommended backup scope for disaster recovery:
 
 Important: local-only backups are not enough for disaster recovery. Prefer offsite destinations (cloud/NAS/remote).
 
-## 11. Known gotchas and fixes
+## 12. Known gotchas and fixes
 
 ### A. Jellyseerr warning about `/app/config`
 
@@ -313,7 +412,7 @@ Running on Docker Desktop context (`desktop-linux`) can reflect VM/filesharing l
 
 Verify ownership/permissions on host paths (`CONFIG_ROOT`, `MEDIA_ROOT`, `DOWNLOADS_ROOT`) match `PUID:PGID` and that directories are writable by group when needed.
 
-## 11. Operational checklist (new machine or rebuild)
+## 13. Operational checklist (new machine or rebuild)
 
 1. Clone repo
 2. Copy env template:
@@ -333,15 +432,17 @@ docker compose --env-file .env up -d
 6. Verify service health with `docker compose ps` and logs
 7. Configure apps (indexers/download client/library roots)
 
-## 12. Security notes
+## 14. Security notes
 
 - Do not commit `.env`
 - Rotate auth keys if exposed
 - Keep containers and host updated regularly
 - Restrict remote exposure to Tailscale rather than open public ports when possible
 - Set `JELLYFIN_USAGE_PASSWORD` before exposing the usage/fee tracker through Tailscale
+- Do not expose WAHA or Whatseerr through Caddy unless you have added a separate access control layer
+- If `WAHA_BIND_IP=0.0.0.0`, restrict access to trusted LAN/VPN clients with host or router firewall rules
 
-## 13. Quick diagnostics
+## 15. Quick diagnostics
 
 ```bash
 # stack status
@@ -351,6 +452,8 @@ docker compose ps
 docker logs --tail 200 jellyfin
 docker logs --tail 200 tailscale
 docker logs --tail 200 prowlarr
+docker logs --tail 200 waha
+docker logs --tail 200 whatseerr
 
 # tailscale status from container
 docker exec tailscale tailscale status
@@ -364,7 +467,7 @@ docker exec radarr df -h /movies /downloads
 ./check-protonvpn-port-sync.sh
 ```
 
-## 14. Public HTTPS with Dynamic IP (Caddy + Dynu/DuckDNS/No-IP)
+## 16. Public HTTPS with Dynamic IP (Caddy + Dynu/DuckDNS/No-IP)
 
 This stack now includes:
 
@@ -458,7 +561,7 @@ docker logs --tail 200 -f ddclient
 docker logs --tail 200 -f caddy
 ```
 
-## 14. CrowdSec (IP reputation + GeoIP blocking)
+## 17. CrowdSec (IP reputation + GeoIP blocking)
 
 This repo now includes a `crowdsec` service that:
 

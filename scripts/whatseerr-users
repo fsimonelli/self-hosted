@@ -1,0 +1,216 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_ENV_FILE = REPO_ROOT / ".env"
+DEFAULT_COMPOSE_FILE = REPO_ROOT / "docker-compose.yml"
+
+
+def parse_env_file(path):
+    values = {}
+    if not path.exists():
+        return values
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        values[key] = value
+
+    return values
+
+
+def resolve_config_path(args):
+    if args.config:
+        return Path(args.config).expanduser()
+
+    env_values = parse_env_file(Path(args.env_file))
+    config_root = os.environ.get("CONFIG_ROOT") or env_values.get("CONFIG_ROOT")
+    if not config_root:
+        raise SystemExit(
+            "CONFIG_ROOT is not set. Pass --config /path/to/config.json or set CONFIG_ROOT in .env."
+        )
+    return Path(config_root).expanduser() / "whatseerr" / "config.json"
+
+
+def normalize_phone(value):
+    phone = value.strip()
+    if phone.endswith("@c.us"):
+        phone = phone[:-5]
+    phone = re.sub(r"[\s()+.-]", "", phone)
+    if not re.fullmatch(r"\d{5,20}", phone):
+        raise SystemExit(
+            "Phone must be a full international WhatsApp number without '+', for example 598XXXXXXXX."
+        )
+    return phone
+
+
+def load_config(path):
+    if not path.exists():
+        raise SystemExit(
+            f"{path} does not exist. Create it from docs/whatseerr-config.example.json first."
+        )
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"{path} is not valid JSON: {error}") from error
+
+
+def write_config(path, config):
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    millis = int((time.time() % 1) * 1000)
+    backup = path.with_name(f"{path.name}.{stamp}-{millis:03d}.bak")
+    counter = 1
+    while backup.exists():
+        backup = path.with_name(f"{path.name}.{stamp}-{millis:03d}.{counter}.bak")
+        counter += 1
+    shutil.copy2(path, backup)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, delete=False
+    ) as handle:
+        json.dump(config, handle, indent=2)
+        handle.write("\n")
+        temp_name = handle.name
+
+    Path(temp_name).replace(path)
+    return backup
+
+
+def user_mappings(config):
+    mappings = config.setdefault("mappings", {})
+    return mappings.setdefault("userIdMappings", {})
+
+
+def list_users(config):
+    users = user_mappings(config)
+    if not users:
+        print("No Whatseerr user mappings found.")
+        return
+
+    print("PHONE                 USER ID  ADMIN  USERNAME")
+    print("--------------------  -------  -----  --------")
+    for phone in sorted(users):
+        entry = users.get(phone) or {}
+        user_id = str(entry.get("userId", ""))
+        admin = "yes" if entry.get("admin") else "no"
+        username = entry.get("username", "")
+        print(f"{phone:<20}  {user_id:<7}  {admin:<5}  {username}")
+
+
+def add_user(args, config):
+    phone = normalize_phone(args.phone)
+    users = user_mappings(config)
+    users[phone] = {
+        "userId": args.user_id,
+        "username": args.username or "",
+        "admin": bool(args.admin),
+    }
+    return phone
+
+
+def remove_user(args, config):
+    phone = normalize_phone(args.phone)
+    users = user_mappings(config)
+    if phone not in users:
+        raise SystemExit(f"{phone} is not mapped.")
+    del users[phone]
+    return phone
+
+
+def restart_whatseerr(args):
+    cmd = [
+        "docker",
+        "compose",
+        "--env-file",
+        str(args.env_file),
+        "-f",
+        str(args.compose_file),
+        "restart",
+        "whatseerr",
+    ]
+    subprocess.run(cmd, check=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Manage Whatseerr WhatsApp-to-Jellyseerr user mappings."
+    )
+    parser.add_argument(
+        "--config",
+        help="path to Whatseerr config.json; defaults to ${CONFIG_ROOT}/whatseerr/config.json from .env",
+    )
+    parser.add_argument("--env-file", default=DEFAULT_ENV_FILE, help="Compose env file")
+    parser.add_argument(
+        "--compose-file", default=DEFAULT_COMPOSE_FILE, help="Docker Compose file"
+    )
+    parser.add_argument(
+        "--no-restart", action="store_true", help="update config without restarting Whatseerr"
+    )
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("list", help="show configured user mappings")
+
+    add_parser = subparsers.add_parser("add", help="add or update a user mapping")
+    add_parser.add_argument("phone", help="WhatsApp number, for example 598XXXXXXXX")
+    add_parser.add_argument("user_id", type=int, help="Jellyseerr user ID")
+    add_parser.add_argument("username", nargs="?", default="", help="optional display name")
+    add_parser.add_argument("--admin", action="store_true", help="mark the user as admin")
+
+    remove_parser = subparsers.add_parser("remove", help="remove a user mapping")
+    remove_parser.add_argument("phone", help="WhatsApp number to remove")
+
+    args = parser.parse_args()
+    config_path = resolve_config_path(args)
+    config = load_config(config_path)
+
+    try:
+        if args.command == "list":
+            list_users(config)
+            return
+
+        if args.command == "add":
+            phone = add_user(args, config)
+            action = "Added"
+        elif args.command == "remove":
+            phone = remove_user(args, config)
+            action = "Removed"
+        else:
+            parser.error(f"unknown command: {args.command}")
+
+        backup = write_config(config_path, config)
+        print(f"{action} mapping for {phone}.")
+        print(f"Backup written to {backup}.")
+
+        if args.no_restart:
+            print("Skipped Whatseerr restart.")
+            return
+
+        restart_whatseerr(args)
+        print("Restarted Whatseerr.")
+    except subprocess.CalledProcessError as error:
+        print(f"Command failed: {' '.join(error.cmd)}", file=sys.stderr)
+        raise SystemExit(error.returncode) from error
+
+
+if __name__ == "__main__":
+    main()
