@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+
+CONTAINER = os.environ.get("CROWDSEC_CONTAINER", "crowdsec")
+
+
+def run_cscli(*args, capture=True):
+    cmd = ["docker", "exec", CONTAINER, "cscli", *args]
+    if capture:
+        return subprocess.run(cmd, check=True, text=True, capture_output=True).stdout
+    subprocess.run(cmd, check=True)
+    return ""
+
+
+def load_bans():
+    output = run_cscli("decisions", "list", "--output", "json")
+    alerts = json.loads(output)
+    bans = []
+
+    for alert in alerts:
+        source = alert.get("source") or {}
+        meta = {
+            item.get("key"): item.get("value")
+            for item in alert.get("meta", [])
+            if item.get("key")
+        }
+
+        for decision in alert.get("decisions") or []:
+            if decision.get("type") != "ban":
+                continue
+
+            bans.append(
+                {
+                    "ip": decision.get("value", ""),
+                    "country": source.get("cn", ""),
+                    "as_name": source.get("as_name", ""),
+                    "reason": decision.get("scenario") or alert.get("scenario", ""),
+                    "expires": decision.get("duration", ""),
+                    "alert_id": str(alert.get("id", "")),
+                    "events": str(alert.get("events_count", "")),
+                    "target_uri": trim_json_list(meta.get("target_uri", "")),
+                }
+            )
+
+    return bans
+
+
+def trim_json_list(value):
+    if not value:
+        return ""
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return value
+    if not parsed:
+        return ""
+    first = str(parsed[0])
+    if len(parsed) == 1:
+        return first
+    return f"{first} (+{len(parsed) - 1})"
+
+
+def fit(text, width):
+    text = str(text or "")
+    if len(text) <= width:
+        return text.ljust(width)
+    if width <= 1:
+        return text[:width]
+    return text[: width - 1] + "…"
+
+
+def print_bans(bans):
+    if not bans:
+        print("No active bans.")
+        return
+
+    terminal_width = shutil.get_terminal_size((120, 20)).columns
+    show_target = terminal_width >= 120
+
+    columns = [
+        ("IP", "ip", 15),
+        ("CC", "country", 2),
+        ("EXPIRES", "expires", 10),
+        ("ALERT", "alert_id", 5),
+        ("EV", "events", 3),
+        ("REASON", "reason", 36),
+        ("AS", "as_name", 28),
+    ]
+    if show_target:
+        columns.append(("TARGET", "target_uri", max(20, terminal_width - 110)))
+
+    print("  ".join(fit(title, width) for title, _, width in columns).rstrip())
+    print("  ".join("-" * width for _, _, width in columns).rstrip())
+    for ban in bans:
+        print("  ".join(fit(ban[key], width) for _, key, width in columns).rstrip())
+
+
+def unban(ip):
+    run_cscli("decisions", "delete", "--ip", ip, capture=False)
+
+
+def pick_and_unban():
+    bans = load_bans()
+    if not bans:
+        print("No active bans.")
+        return
+
+    for index, ban in enumerate(bans, start=1):
+        parts = [
+            f"{index}.",
+            ban["ip"],
+            ban["country"] or "-",
+            ban["expires"] or "-",
+            ban["reason"] or "-",
+        ]
+        if ban["as_name"]:
+            parts.append(f"({ban['as_name']})")
+        print(" ".join(parts))
+
+    choice = input("\nUnban number or IP, blank to cancel: ").strip()
+    if not choice:
+        print("Canceled.")
+        return
+
+    if choice.isdigit():
+        index = int(choice)
+        if index < 1 or index > len(bans):
+            raise SystemExit(f"Invalid selection: {choice}")
+        ip = bans[index - 1]["ip"]
+    else:
+        ip = choice
+
+    print(f"Unbanning {ip}...")
+    unban(ip)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Quickly view and remove active CrowdSec IP bans."
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    subparsers.add_parser("list", help="show active bans")
+
+    unban_parser = subparsers.add_parser("unban", help="remove an active ban by IP")
+    unban_parser.add_argument("ip")
+
+    subparsers.add_parser("pick", help="choose an active ban from a numbered prompt")
+
+    args = parser.parse_args()
+    command = args.command or "list"
+
+    try:
+        if command == "list":
+            print_bans(load_bans())
+        elif command == "unban":
+            unban(args.ip)
+        elif command == "pick":
+            pick_and_unban()
+        else:
+            parser.error(f"unknown command: {command}")
+    except subprocess.CalledProcessError as error:
+        print(f"Command failed: {' '.join(error.cmd)}", file=sys.stderr)
+        if error.stderr:
+            print(error.stderr.strip(), file=sys.stderr)
+        raise SystemExit(error.returncode)
+
+
+if __name__ == "__main__":
+    main()

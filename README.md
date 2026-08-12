@@ -708,6 +708,38 @@ Active bans currently being enforced:
 docker exec crowdsec cscli decisions list
 ```
 
+Quick active-ban view:
+
+```bash
+./scripts/crowdsec-bans
+```
+
+Quick unban by IP:
+
+```bash
+./scripts/crowdsec-bans unban <ip-address>
+```
+
+Interactive unban prompt:
+
+```bash
+./scripts/crowdsec-bans pick
+```
+
+Mobile-friendly ban UI:
+
+```bash
+docker compose --env-file .env up -d --build crowdsec-ui
+```
+
+Then open:
+
+```text
+http://127.0.0.1:${CROWDSEC_UI_PORT:-8093}
+```
+
+Set `CROWDSEC_UI_PASSWORD` in `.env` before exposing this through Tailscale or any reverse proxy.
+
 Recent alerts:
 
 ```bash

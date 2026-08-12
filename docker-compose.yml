@@ -584,6 +584,7 @@ services:
     container_name: crowdsec
     ports:
       - "127.0.0.1:8087:8080"
+      - "127.0.0.1:${CROWDSEC_UI_PORT:-8093}:8088"
     environment:
       - TZ=${TZ}
       - COLLECTIONS=crowdsecurity/caddy crowdsecurity/http-cve crowdsecurity/whitelist-good-actors
@@ -605,6 +606,22 @@ services:
     restart: unless-stopped
     networks:
       - media
+
+  crowdsec-ui:
+    build: ./crowdsec-ui
+    container_name: crowdsec-ui
+    environment:
+      - CROWDSEC_API_URL=http://127.0.0.1:8080
+      - CROWDSEC_CREDENTIALS=/run/crowdsec/local_api_credentials.yaml
+      - CROWDSEC_UI_PASSWORD=${CROWDSEC_UI_PASSWORD:-}
+      - CROWDSEC_UI_BIND=0.0.0.0
+      - CROWDSEC_UI_PORT=8088
+    volumes:
+      - ${CONFIG_ROOT}/crowdsec/etc/local_api_credentials.yaml:/run/crowdsec/local_api_credentials.yaml:ro
+    network_mode: "service:crowdsec"
+    depends_on:
+      - crowdsec
+    restart: unless-stopped
 
 networks:
   media:
