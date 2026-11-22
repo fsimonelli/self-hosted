@@ -299,6 +299,8 @@ docker compose --env-file .env up -d waha
 curl -H "X-Api-Key: $WAHA_API_KEY" http://127.0.0.1:${WAHA_PORT:-8584}/api/sessions
 ```
 
+WAHA is pinned to the tested image digest in `docker-compose.yml`; update it deliberately rather than using an unpinned `latest` image. Its healthcheck verifies that the `default` session is authenticated and `WORKING`, not simply that the HTTP server responds. This status is visible to Docker and the existing Beszel container monitor.
+
 From another machine on the same LAN, open:
 
 ```text
