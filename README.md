@@ -301,6 +301,10 @@ curl -H "X-Api-Key: $WAHA_API_KEY" http://127.0.0.1:${WAHA_PORT:-8584}/api/sessi
 
 WAHA is pinned to the tested image digest in `docker-compose.yml`; update it deliberately rather than using an unpinned `latest` image. Its healthcheck verifies that the `default` session is authenticated and `WORKING`, not simply that the HTTP server responds. This status is visible to Docker and the existing Beszel container monitor.
 
+WAHA uses the `GOWS` engine (`WHATSAPP_DEFAULT_ENGINE=GOWS`), which connects to WhatsApp directly instead of driving a headless Chromium. The previous `WEBJS` engine repeatedly failed to relaunch its browser after a reconnect hiccup, left the session `FAILED`, and WhatsApp then unlinked the device. Session data is per engine (`/app/.sessions/gows/`), so changing the engine requires re-pairing and re-creating the session with its webhook config.
+
+`waha-watchdog` polls the `default` session every 60s and restarts the `waha` container if it stays `FAILED` for 3 consecutive checks (at most once every 15 minutes). It never acts on `SCAN_QR_CODE`/`STARTING`, so pairing is not interrupted. Check its activity with `docker logs waha-watchdog`.
+
 From another machine on the same LAN, open:
 
 ```text

@@ -322,12 +322,16 @@ services:
       - media
 
   waha:
-    image: devlikeapro/waha:latest
+    # Pinned: bump the digest deliberately after checking the WAHA changelog.
+    image: devlikeapro/waha@sha256:2fc1787ddbd343ed2e7d59482846d1b22aa5ca134e29aa8d42d0e88c54e24779
     container_name: waha
     restart: unless-stopped
     environment:
       - TZ=${TZ}
       - WAHA_WORKER_ID=waha
+      # GOWS talks to WhatsApp directly (no headless Chromium). WEBJS logged the
+      # device out after failed browser relaunches on Nov 9 and Nov 21 2026.
+      - WHATSAPP_DEFAULT_ENGINE=GOWS
       - WAHA_PRINT_QR=False
       - WAHA_API_KEY=${WAHA_API_KEY}
       - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
@@ -345,6 +349,47 @@ services:
       timeout: 10s
       start_period: 90s
       retries: 3
+    networks:
+      - media
+
+  waha-watchdog:
+    # Restarts WAHA when the session is stuck in FAILED, before WhatsApp unlinks
+    # the device. Ignores SCAN_QR_CODE/STARTING so pairing is never interrupted.
+    image: docker:cli
+    container_name: waha-watchdog
+    restart: unless-stopped
+    environment:
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - WAHA_URL=http://waha:3000
+      - WAHA_SESSION=${WAHA_SESSION:-default}
+      - CHECK_INTERVAL=60
+      - FAILED_THRESHOLD=3
+      - RESTART_COOLDOWN=900
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        fails=0; last=0
+        while true; do
+          status=$$(wget -qO- --header="X-Api-Key: $$WAHA_API_KEY" "$$WAHA_URL/api/sessions/$$WAHA_SESSION" 2>/dev/null | grep -o '"status":"[A-Z_]*"' | head -n1 | cut -d'"' -f4)
+          now=$$(date +%s)
+          if [ "$$status" = "FAILED" ]; then
+            fails=$$((fails + 1))
+            echo "$$(date -Iseconds) session=$$WAHA_SESSION status=$$status consecutive=$$fails"
+            if [ "$$fails" -ge "$$FAILED_THRESHOLD" ] && [ $$((now - last)) -ge "$$RESTART_COOLDOWN" ]; then
+              echo "$$(date -Iseconds) restarting waha container"
+              docker restart waha && last=$$now
+              fails=0
+            fi
+          else
+            [ "$$fails" -gt 0 ] && echo "$$(date -Iseconds) session=$$WAHA_SESSION status=$${status:-unreachable} recovered"
+            fails=0
+          fi
+          sleep "$$CHECK_INTERVAL"
+        done
+    depends_on:
+      - waha
     networks:
       - media
 
